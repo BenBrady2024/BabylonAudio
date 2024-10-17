@@ -10,29 +10,39 @@ const { firefox } = require('playwright');
   // Open Page
   const page = await context.newPage();
 
-  const CONTEXT = await page.evaluate(async () => {
+  // Open the test page
+  await page.goto('https://playground.babylonjs.com/');
+  console.log("Webpage Loaded");
+
+  // Simulate a user interaction by clicking on the page
+  await page.click('body');  // This simulates a user click to unlock audio
+
+  // Evaluate in the browser context
+  await page.evaluate(async () => {
+    // Function to play and visualize audio
     async function playAndVisualizeAudio(url) {
       // Create Audio Context
       const audioCtx = new AudioContext();
 
       // Create an analyser node
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048; // Sets the size of the FFT used for frequency-domain analysis
-      const bufferLength = analyser.frequencyBinCount; // Half of fftSize
-      const dataArray = new Uint8Array(bufferLength); // Array to hold the time-domain data
+      analyser.fftSize = 2048;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
 
-      // Fetch the audio file from the URL
+      // Fetch and decode audio data
       const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch resource: ${response.statusText}`);
+      }
       const arrayBuffer = await response.arrayBuffer();
-
-      // Decode the audio data
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-      // Create a buffer source node and set the buffer
+      // Create a buffer source node
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
 
-      // Connect the source to the analyser, and then to the context's destination (speakers)
+      // Connect the source to the analyser and speakers
       source.connect(analyser);
       analyser.connect(audioCtx.destination);
 
@@ -50,14 +60,13 @@ const { firefox } = require('playwright');
       function draw() {
         requestAnimationFrame(draw);
 
-        // Get the time-domain data from the analyser
         analyser.getByteTimeDomainData(dataArray);
 
-        // Clear the canvas
+        // Clear canvas
         canvasCtx.fillStyle = 'rgb(200, 200, 200)';
         canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw the waveform
+        // Draw waveform
         canvasCtx.lineWidth = 2;
         canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
         canvasCtx.beginPath();
@@ -66,7 +75,7 @@ const { firefox } = require('playwright');
         let x = 0;
 
         for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0; // Normalize the data
+          const v = dataArray[i] / 128.0;
           const y = (v * canvas.height) / 2;
 
           if (i === 0) {
@@ -82,24 +91,16 @@ const { firefox } = require('playwright');
         canvasCtx.stroke();
       }
 
-      // Start visualizing
+      // Start visualization
       draw();
     }
 
-    // URL of the audio file to play and visualize
-    const audioUrl = 'https://downloads.khinsider.com/game-soundtracks/album/banjo-tooie-complete/68.%2520Level%25204%2520-%2520Jolly%2520Roger%2527s%2520Lagoon.mp3';
-
-    // Play and visualize the audio
+    // Call the function to play and visualize the audio
+    const audioUrl = 'https://raw.githubusercontent.com/BenBrady2024/mp3test/main/DK64Test.mp3'; // Use the raw URL for your MP3 file
     await playAndVisualizeAudio(audioUrl);
-
-    return 'Audio playing and visualization started!';
   });
 
-  // Go to a test webpage if needed
-  await page.goto('https://playground.babylonjs.com/#SPLFNK#1');
-  console.log("Webpage Loaded");
-
-  // Closing Browsers
-  await context.close();
-  await browser.close();
+  // Close Browser
+  // await context.close();
+  // await browser.close();
 })();
